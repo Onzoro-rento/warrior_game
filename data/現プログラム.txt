@@ -1,0 +1,352 @@
+int state;    // 現在の状態 (0=タイトル, 1=ゲーム, 2=エンディング)
+long t_start; // 現在の状態になった時刻[ミリ秒]
+float t;      // 現在の状態になってからの経過時間[秒]
+
+PImage stageImage; // ステージの画像
+PImage characterImage; // キャラクターの画像
+PImage image2;
+PImage image3;
+PImage image4;
+PImage image5;
+PImage image6;
+PImage image7; //攻撃L
+PImage image8;
+PImage image9;
+PImage image10;
+PImage image11; //攻撃R
+PImage image12;
+PImage image13;
+PImage image14;
+PImage image15; //透明画像
+
+// 敵キャラクター
+PImage[] doragonImages = new PImage[3];
+PImage[] kituneImages = new PImage[3];
+PImage[] mahouImages = new PImage[3];
+PImage[] obakeImages = new PImage[3];
+PImage[] okamiImages = new PImage[2];
+PImage[] goburinImages = new PImage[2];
+
+PImage titleimage;
+
+long lastMousePressedTime = 0;
+int attackFrameIndex = 0;
+PImage[] leftAttackImages;
+PImage[] rightAttackImages;
+
+int stageWidth = 1600; // ステージの幅
+int stageHeight = 1200; // ステージの高さ
+int screenWidth = 800; // 画面の幅
+int screenHeight = 600; // 画面の高さ
+int charSize = 100; // キャラクターのサイズ
+int charX = stageWidth / 2; // キャラクターの初期X座標
+int charY = stageHeight / 2; // キャラクターの初期Y座標
+int charSpeed = 5; // キャラクターの移動速度
+int offsetX, offsetY; // 背景のオフセット
+int enemyCount = 0; //敵の数
+
+boolean moveLeft = false;
+boolean moveRight = false;
+boolean moveUp = false;
+boolean moveDown = false;
+
+int playerHP = 100; // プレイヤーのHP
+int maxHP = 100; // プレイヤーの最大HP
+
+ArrayList<Enemy> enemies = new ArrayList<Enemy>(); // 敵キャラクターのリスト
+
+void setup(){
+  size(800, 600);
+  smooth();
+  
+  // 画像の読み込み
+  stageImage = loadImage("stage.jpg");
+  characterImage = loadImage("front.png");
+  image2 = loadImage("back.png");
+  image3 = loadImage("left_1.png");
+  image4 = loadImage("left_2.png");
+  image5 = loadImage("Right1.png");
+  image6 = loadImage("Right2.png");
+  image7 =loadImage("front.png");
+  image8 =loadImage("Attack_L2.png");
+  image9 =loadImage("Attack_L3.png");
+  image10 =loadImage("Attack_L4.png");
+  image11 =loadImage("front.png");
+  image12 =loadImage("Attack_R2.png");
+  image13 =loadImage("Attack_R3.png");
+  image14 =loadImage("Attack_R4.png");
+  image15 = loadImage("Skelton.png");
+  titleimage = loadImage("title.png");
+
+  // 敵キャラクター画像の読み込み
+  doragonImages[0] = loadImage("doragon1.png");
+  doragonImages[1] = loadImage("doragon2.png");
+  doragonImages[2] = loadImage("doragon3.png");
+  
+  kituneImages[0] = loadImage("kitune1.png");
+  kituneImages[1] = loadImage("kitune2.png");
+  kituneImages[2] = loadImage("kitune3.png");
+  
+  mahouImages[0] = loadImage("mahou1.png");
+  mahouImages[1] = loadImage("mahou2.png");
+  mahouImages[2] = loadImage("mahou3.png");
+  
+  obakeImages[0] = loadImage("obake1.png");
+  obakeImages[1] = loadImage("obake2.png");
+  obakeImages[2] = loadImage("obake3.png");
+  
+  okamiImages[0] = loadImage("okami1.png");
+  okamiImages[1] = loadImage("okami2.png");
+  
+  goburinImages[0] = loadImage("goburin1.png");
+  goburinImages[1] = loadImage("goburin2.png");
+
+  leftAttackImages = new PImage[] { image7, image8, image9, image10, image15};
+  rightAttackImages = new PImage[] { image11, image12, image13, image14,image15};
+  
+  textSize(32);
+  textAlign(CENTER);
+  fill(255);
+  state = 0;
+  
+  //日本語を使えるようにする
+  PFont font = createFont("Meiryo", 50);
+  textFont(font);
+}
+
+void draw(){
+  background(0);
+ 
+  int nextState = 0;
+  if (state == 0) { 
+    nextState = title(); 
+  } else if (state == 1) { 
+    nextState = game(); 
+  }
+ 
+  state = nextState;
+}
+
+int title(){
+  text("Warrior", width * 0.5, height * 0.3 - 50);
+  
+  text("Press 'a' key to start", width * 0.5, height * 0.7 + 50);
+  scale(0.2);
+  image(titleimage, width * 0.5 + titleimage.width / 2, height * 0.5 + titleimage.height - 700);
+
+  if (keyPressed && key == 'a') { // if 'a' key is pressed
+    return 1; // start game
+  }
+  return 0;
+}
+
+int game(){
+  background(255); // 毎フレーム背景をクリア
+  
+  // オフセットの計算
+  offsetX = charX - screenWidth / 2;
+  offsetY = charY - screenHeight / 2;
+  
+  // オフセットがステージの端を超えないように制御
+  offsetX = constrain(offsetX, 0, stageWidth - screenWidth);
+  offsetY = constrain(offsetY, 0, stageHeight - screenHeight);
+  
+  // ステージの画像を描画
+  image(stageImage, -offsetX, -offsetY, stageWidth, stageHeight);
+  
+  // キャラクターの画像を描画
+  float drawCharX = charX - offsetX;
+  float drawCharY = charY - offsetY;
+  if (keyPressed == false && mousePressed == false){
+      image(characterImage, drawCharX - charSize / 2, drawCharY - charSize / 2, charSize, charSize);
+  }
+  
+  // キャラクターの移動
+  if (moveLeft && !mousePressed) {
+    charX = max(charX - charSpeed, charSize / 2 + 180);
+    if (moveUp) {
+      charY = max(charY - charSpeed, charSize / 2 + 100);
+    }
+    if (moveDown) {
+      charY = min(charY + charSpeed, stageHeight - charSize / 2 - 150);
+    }
+    if (charX % 3 == 0) {
+      image(image3, drawCharX - charSize / 2, drawCharY - charSize / 2, charSize, charSize);
+    } else {
+      image(image4, drawCharX - charSize / 2, drawCharY - charSize / 2, charSize, charSize);
+    }
+  } else if (moveRight && !mousePressed) {
+    charX = min(charX + charSpeed, stageWidth - charSize / 2 - 180);
+    if (moveUp) {
+      charY = max(charY - charSpeed, charSize / 2 + 100);
+    }
+    if (moveDown) {
+      charY = min(charY + charSpeed, stageHeight - charSize / 2 - 150);
+    }
+    if (charX % 3 == 0) {
+      image(image6, drawCharX - charSize / 2, drawCharY - charSize / 2, charSize, charSize);
+    } else {
+      image(image5, drawCharX - charSize / 2, drawCharY - charSize / 2, charSize, charSize);
+    }
+  } else if (moveUp && !mousePressed) {
+    charY = max(charY - charSpeed, charSize / 2 + 100);
+    image(image2, drawCharX - charSize / 2, drawCharY - charSize / 2, charSize, charSize);
+  } else if (moveDown && !mousePressed) {
+    charY = min(charY + charSpeed, stageHeight - charSize / 2 - 150);
+    image(characterImage, drawCharX - charSize / 2, drawCharY - charSize / 2, charSize, charSize);
+  }
+  
+  // 敵キャラクターの生成
+  if (frameCount % 60 == 0 && enemyCount < 30) {
+    enemies.add(new Enemy());
+    enemyCount++;
+    
+  }
+  //残りの敵の数の表示
+  textSize(24);
+  fill(0, 0, 255);
+  text("敵の数：" + enemyCount, width-100, 30);
+  
+  // 敵キャラクターの更新と描画
+  for (Enemy e : enemies) {
+    e.update();
+    e.display();
+  }
+
+  // HPゲージの描画
+  drawHPGauge();
+  
+  // 攻撃処理
+  long currentTime = millis();
+  if (mousePressed && (currentTime - lastMousePressedTime) >= 100) {
+    attackFrameIndex = (attackFrameIndex + 1) % 4;
+    lastMousePressedTime = currentTime;
+  }
+  
+  if (mouseButton == LEFT) {
+    image(leftAttackImages[attackFrameIndex], drawCharX - charSize / 2, drawCharY - charSize / 2, charSize, charSize);
+  } else if (mouseButton == RIGHT) {
+    image(rightAttackImages[attackFrameIndex], drawCharX - charSize / 2, drawCharY - charSize / 2, charSize, charSize);
+  }
+  
+  if (keyPressed && key == 'b') {
+    return title(); // go to ending
+  }
+  
+  return 1;
+}
+
+void keyPressed() {
+  if (keyCode == LEFT) {
+    moveLeft = true;
+  }
+  if (keyCode == RIGHT) {
+    moveRight = true;
+  }
+  if (keyCode == UP) {
+    moveUp = true;
+  }
+  if (keyCode == DOWN) {
+    moveDown = true;
+  }
+}
+
+void keyReleased() {
+  if (keyCode == LEFT) {
+    moveLeft = false;
+  }
+  if (keyCode == RIGHT) {
+    moveRight = false;
+  }
+  if (keyCode == UP) {
+    moveUp = false;
+  }
+  if (keyCode == DOWN) {
+    moveDown = false;
+  }
+}
+
+// HPゲージを描画する関数
+void drawHPGauge() {
+  int gaugeWidth = 200; // ゲージの幅
+  int gaugeHeight = 20; // ゲージの高さ
+  int x = 10; // ゲージのX座標
+  int y = 10; // ゲージのY座標
+  
+  // 背景の描画
+  fill(100);
+  rect(x, y, gaugeWidth, gaugeHeight);
+  
+  // 現在のHPの割合を計算
+  float hpRatio = (float)playerHP / maxHP;
+  
+  // HPの部分を描画
+  fill(0, 0, 255);
+  rect(x, y, gaugeWidth * hpRatio, gaugeHeight);
+  fill(0);
+  textSize(25);
+  text("HP", 230, 30);
+}
+
+// 敵キャラクターのクラス
+class Enemy {
+  float x, y;
+  float speed;
+  float size;
+  PImage enemyImage;
+  
+  Enemy() {
+    x = random(stageWidth);
+    y = random(stageHeight);
+    speed = random(1, 3);
+    size = 50;
+    
+    // 敵キャラクターの種類をランダムに選択
+    int enemyType = int(random(6));
+    switch(enemyType) {
+      case 0:
+        enemyImage = doragonImages[int(random(doragonImages.length))];
+        break;
+      case 1:
+        enemyImage = kituneImages[int(random(kituneImages.length))];
+        break;
+      case 2:
+        enemyImage = mahouImages[int(random(mahouImages.length))];
+        break;
+      case 3:
+        enemyImage = obakeImages[int(random(obakeImages.length))];
+        break;
+      case 4:
+        enemyImage = okamiImages[int(random(okamiImages.length))];
+        break;
+      case 5:
+        enemyImage = goburinImages[int(random(goburinImages.length))];
+        break;
+    }
+  }
+  
+  void update() {
+    float angle = atan2(charY - y, charX - x);
+    x += cos(angle) * speed;
+    y += sin(angle) * speed;
+  }
+  
+  void display() {
+    float drawX = x - offsetX;
+    float drawY = y - offsetY;
+    image(enemyImage, drawX - size / 2, drawY - size / 2, size, size);
+  }
+}
+
+void mouseReleased(){
+  float drawCharX = charX - offsetX;
+  float drawCharY = charY - offsetY;
+  long currentTime = millis();
+  attackFrameIndex = 4;
+  if (mouseButton == LEFT) {
+    image(leftAttackImages[attackFrameIndex], drawCharX - charSize / 2, drawCharY - charSize / 2, charSize, charSize);
+  } else if (mouseButton == RIGHT) {
+    image(rightAttackImages[attackFrameIndex], drawCharX - charSize / 2, drawCharY - charSize / 2, charSize, charSize);
+  }
+  lastMousePressedTime = currentTime;
+}
